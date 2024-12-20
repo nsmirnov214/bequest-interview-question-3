@@ -1,24 +1,38 @@
+// Updated client: App.tsx
+
 import React, { useEffect, useState } from "react";
+import CryptoJS from "crypto-js";
 
 const API_URL = "http://localhost:8080";
 
 function App() {
-  const [data, setData] = useState<string>();
+  const [data, setData] = useState<string>("");
+  const [hash, setHash] = useState<string>("");
+  const [verified, setVerified] = useState<boolean | null>(null);
+  const [recoveryMessage, setRecoveryMessage] = useState<string>("");
 
   useEffect(() => {
     getData();
   }, []);
 
+  const generateHash = (data: string) => {
+    return CryptoJS.SHA256(data).toString(CryptoJS.enc.Hex);
+  };
+
   const getData = async () => {
     const response = await fetch(API_URL);
-    const { data } = await response.json();
+    const { data, hash } = await response.json();
     setData(data);
+    setHash(hash);
+    setVerified(null); // Reset verification state
+    setRecoveryMessage(""); // Clear any previous recovery messages
   };
 
   const updateData = async () => {
+    const newHash = generateHash(data);
     await fetch(API_URL, {
       method: "POST",
-      body: JSON.stringify({ data }),
+      body: JSON.stringify({ data, hash: newHash }),
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -28,8 +42,15 @@ function App() {
     await getData();
   };
 
-  const verifyData = async () => {
-    throw new Error("Not implemented");
+  const verifyData = () => {
+    const computedHash = generateHash(data);
+    setVerified(computedHash === hash);
+  };
+
+  const recoverData = async () => {
+    setRecoveryMessage("Data tampered! Recovering original data...");
+    await getData();
+    setRecoveryMessage("Original data restored.");
   };
 
   return (
@@ -62,7 +83,22 @@ function App() {
         <button style={{ fontSize: "20px" }} onClick={verifyData}>
           Verify Data
         </button>
+        <button style={{ fontSize: "20px" }} onClick={recoverData}>
+          Recover Data
+        </button>
       </div>
+
+      {verified !== null && (
+        <div style={{ fontSize: "20px", color: verified ? "green" : "red" }}>
+          {verified ? "Data is valid" : "Data has been tampered with!"}
+        </div>
+      )}
+
+      {recoveryMessage && (
+        <div style={{ fontSize: "20px", color: "orange" }}>
+          {recoveryMessage}
+        </div>
+      )}
     </div>
   );
 }

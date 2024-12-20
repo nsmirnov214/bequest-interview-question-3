@@ -3,10 +3,18 @@ import cors from "cors";
 
 const PORT = 8080;
 const app = express();
-const database = { data: "Hello World" };
+let database = { data: "Hello World", hash: "" };
 
 app.use(cors());
 app.use(express.json());
+
+// Utility function to generate a hash
+const generateHash = (data: string) => {
+  return require("crypto").createHash("sha256").update(data).digest("hex");
+};
+
+// Initialize hash for default data
+database.hash = generateHash(database.data);
 
 // Routes
 
@@ -15,7 +23,14 @@ app.get("/", (req, res) => {
 });
 
 app.post("/", (req, res) => {
-  database.data = req.body.data;
+  const { data, hash } = req.body;
+  const computedHash = generateHash(data);
+
+  if (hash !== computedHash) {
+    return res.status(400).json({ error: "Hash mismatch. Data integrity compromised." });
+  }
+
+  database = { data, hash };
   res.sendStatus(200);
 });
 
